@@ -1,4 +1,5 @@
 import { Redis } from  "ioredis"
+import { SchemaTextFieldPhonetics } from "redis"
 type Configure = {
   tokenId?:string,
   keyPrefix?:string,
@@ -75,17 +76,26 @@ function createStore(driver, redis, map) {
   if (driver === "redis") {
     db = {
       async get(key) {
-        const value = await redis.get(key)
-        if(value){
-          return JSON.parse(value)
-        }else{
-          return undefined
+        try{
+          const value = await redis.get(key)
+          if(value){
+            return JSON.parse(value)
+          }
+          return
+        }catch(error){
+          throw error 
         }
+      
       },
       async set(key, value,lifetime) {
-         await redis.set(key, JSON.stringify(value));
-         await redis.expire(key,lifetime)
-         return value
+        try{
+          await redis.set(key, JSON.stringify(value));
+          await redis.expire(key,lifetime)
+          return value
+        }catch(error){
+          throw error
+        }
+       
       },
     };
   } else {
