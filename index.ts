@@ -1,5 +1,5 @@
 import { Redis } from  "ioredis"
-import { SchemaTextFieldPhonetics } from "redis"
+
 type Configure = {
   tokenId?:string,
   keyPrefix?:string,
@@ -27,38 +27,40 @@ function JwtBlackList(){
      store = createStore(opts.driver,opts.redis,new Map());
   }
 
-  async function isRevoked(ctx, user) {
+  function isRevoked(req, user,fn) {
     try {
       let revoked = opts.strict;
       let id = user[opts.tokenId];
       if (!id) {
-        throw new Error("JWT missing tokenId " + opts.tokenId);
+       return fn(new Error("JWT missing tokenId " + opts.tokenId));
       }
       let key = opts.keyPrefix + id;
-      const exp = await store.get(key);
-      if (!exp) {
-        return revoked;
-      }
-
-      return exp - Math.floor(Date.now() / 1000) > 0;
+       store.get(key).then((exp)=>{
+        if (!exp) {
+          fn(null,revoked);
+        }else{
+          fn(null,exp - Math.floor(Date.now() / 1000) > 0)
+        }
+      }).catch(fn);
+      
     } catch (error) {
-      throw error;
+      fn(error);
     }
   }
 
-  async function revoke(user) {
+   function revoke(user,fn = (params)=>{}) {
     if (!user) {
-      throw new Error("User payload missing");
+     return fn(new Error("User payload missing"));
     }
   
     let id = user[opts.tokenId];
     if (!id) {
-      throw new Error("JWT missing tokenId " + opts.tokenId);
+      return fn(new Error("JWT missing tokenId " + opts.tokenId));
     }
     let key = opts.keyPrefix + id;
     let lifetime = user.exp ? user.exp - Math.floor(Date.now() / 1000) : 0;
     if (lifetime > 0) {
-      await store.set(key, user.exp, lifetime);
+      store.set(key, user.exp, lifetime).then(fn).catch(fn);
     }
   }
   
