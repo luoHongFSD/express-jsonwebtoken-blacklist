@@ -83,7 +83,9 @@ function createStore(driver, redis, map) {
         }
       },
       async set(key, value,lifetime) {
-        return redis.set(key, JSON.stringify(value),'EX',lifetime);
+         await redis.set(key, JSON.stringify(value));
+         await redis.expire(key,lifetime)
+         return value
       },
     };
   } else {
